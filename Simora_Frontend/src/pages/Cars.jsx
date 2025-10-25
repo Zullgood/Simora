@@ -290,13 +290,6 @@ const Cars = () => {
                   <Edit className="w-4 h-4" />
                   <span>Edit</span>
                 </button>
-                <button
-                  onClick={() => handleDeleteCar(car.id)}
-                  className="flex-1 flex items-center justify-center space-x-2 bg-red-50 text-red-600 py-2.5 px-3 rounded-lg hover:bg-red-100 hover:scale-105 transition-all duration-200 text-sm font-medium transform"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Hapus</span>
-                </button>
               </div>
             </div>
           </div>

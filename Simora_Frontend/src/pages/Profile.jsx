@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Camera, Save, Edit, Lock } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Camera, Save, Edit, Lock, Eye, EyeOff } from 'lucide-react';
 import { profileAPI } from '../services/api';
+import Swal from 'sweetalert2';
 
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -21,6 +22,12 @@ const Profile = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
+  });
+
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
   });
 
   useEffect(() => {
@@ -67,11 +74,19 @@ const Profile = () => {
       console.log('Profile update response:', response.data);
       
       if (response.data.success) {
-        alert('Profile berhasil diperbarui!');
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil',
+          text: 'Profile berhasil diperbarui!'
+        });
         setIsEditing(false);
         fetchProfile(); // Refresh data
       } else {
-        alert('Gagal memperbarui profile: ' + (response.data.message || 'Unknown error'));
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal',
+          text: response.data.message || 'Unknown error'
+        });
       }
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -87,7 +102,11 @@ const Profile = () => {
         errorMessage = error.message;
       }
       
-      alert('Gagal memperbarui profile: ' + errorMessage);
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal Memperbarui',
+        text: errorMessage
+      });
     }
   };
 
@@ -96,7 +115,11 @@ const Profile = () => {
     if (file) {
       // Check file size (max 2MB)
       if (file.size > 2 * 1024 * 1024) {
-        alert('Ukuran file terlalu besar. Maksimal 2MB.');
+        Swal.fire({
+          icon: 'error',
+          title: 'Ukuran Terlalu Besar',
+          text: 'Ukuran file maksimal 2MB.'
+        });
         return;
       }
       
@@ -145,7 +168,11 @@ const Profile = () => {
   const handleChangePassword = async (e) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Password baru tidak cocok!');
+      Swal.fire({
+        icon: 'error',
+        title: 'Password Tidak Cocok',
+        text: 'Password baru tidak cocok!'
+      });
       return;
     }
     
@@ -157,45 +184,53 @@ const Profile = () => {
       });
       
       if (response.data.success) {
-        alert('Password berhasil diubah!');
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil',
+          text: 'Password berhasil diubah!'
+        });
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setShowPasswordForm(false);
       }
     } catch (error) {
       console.error('Error changing password:', error);
-      alert('Gagal mengubah password: ' + (error.response?.data?.message || 'Terjadi kesalahan'));
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal Mengubah Password',
+        text: error.response?.data?.message || 'Terjadi kesalahan'
+      });
     }
   };
 
 
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Profile Admin</h1>
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Profile Admin</h1>
         <button
           onClick={() => setIsEditing(!isEditing)}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
         >
           <Edit className="w-4 h-4" />
           <span>{isEditing ? 'Batal' : 'Edit Profile'}</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Profile Card */}
         <div className="lg:col-span-1">
-          <div className="lg:col-span-1 flex flex-col items-center p-6 bg-white/60 rounded-2xl shadow-lg border border-gray-200">
+          <div className="flex flex-col items-center p-4 sm:p-6 bg-white/60 rounded-2xl shadow-lg border border-gray-200">
               <div className="relative inline-block">
                 {profileData.avatar ? (
                   <img 
                     src={profileData.avatar} 
                     alt="Profile"
-                    className="w-32 h-32 rounded-full object-cover mx-auto mb-4 border-4 border-white shadow-lg"
+                    className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover mx-auto mb-4 border-4 border-white shadow-lg"
                   />
                 ) : (
-                  <div className="w-32 h-32 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <User className="w-16 h-16 text-white" />
+                  <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <User className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
                   </div>
                 )}
                 {isEditing && (
@@ -216,12 +251,12 @@ const Profile = () => {
                   </>
                 )}
               </div>
-              <h3 className="text-xl font-semibold text-gray-900">{profileData.name}</h3>
-              <p className="text-gray-600">{profileData.position}</p>
-              <p className="text-sm text-gray-500">{profileData.department}</p>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 text-center">{profileData.name}</h3>
+              <p className="text-sm sm:text-base text-gray-600 text-center">{profileData.position}</p>
+              <p className="text-xs sm:text-sm text-gray-500 text-center">{profileData.department}</p>
               
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="flex items-center justify-center text-sm text-gray-600">
+              <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200 w-full">
+                <div className="flex items-center justify-center text-xs sm:text-sm text-gray-600">
                   <Calendar className="w-4 h-4 mr-2" />
                   Bergabung sejak {new Date(profileData.joinDate).toLocaleDateString('id-ID', { 
                     year: 'numeric', 
@@ -234,13 +269,13 @@ const Profile = () => {
 
         {/* Profile Details */}
         <div className="lg:col-span-2">
-          <div className="lg:col-span-1 flex flex-col p-6 bg-white/60 rounded-2xl shadow-lg border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Informasi Personal</h3>
+          <div className="flex flex-col p-4 sm:p-6 bg-white/60 rounded-2xl shadow-lg border border-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Informasi Personal</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <User className="w-4 h-4 mr-2" />
+                <label className="flex items-center text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                  <User className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                   Nama Lengkap
                 </label>
                 {isEditing ? (
@@ -249,16 +284,16 @@ const Profile = () => {
                     name="name"
                     value={profileData.name}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 ) : (
-                  <p className="text-gray-900 py-2">{profileData.name}</p>
+                  <p className="text-sm sm:text-base text-gray-900 py-2">{profileData.name}</p>
                 )}
               </div>
 
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 mr-2" />
+                <label className="flex items-center text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                  <Mail className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                   Email
                 </label>
                 {isEditing ? (
@@ -268,18 +303,18 @@ const Profile = () => {
                     value={profileData.email}
                     readOnly
                     disabled={!isEditing}
-                    className={`w-full px-3 py-2 border rounded-lg ${
+                    className={`w-full px-3 py-2 text-sm border rounded-lg ${
                       isEditing ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' : 'bg-transparent border-transparent'
                     }`}
                   />
                 ) : (
-                  <p className="text-gray-900 py-2">{profileData.email}</p>
+                  <p className="text-sm sm:text-base text-gray-900 py-2 break-all">{profileData.email}</p>
                 )}
               </div>
 
               <div>
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <Phone className="w-4 h-4 mr-2" />
+                <label className="flex items-center text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                  <Phone className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                   Nomor Telepon
                 </label>
                 {isEditing ? (
@@ -288,15 +323,15 @@ const Profile = () => {
                     name="phone"
                     value={profileData.phone}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 ) : (
-                  <p className="text-gray-900 py-2">{profileData.phone}</p>
+                  <p className="text-sm sm:text-base text-gray-900 py-2">{profileData.phone}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Posisi
                 </label>
                 {isEditing ? (
@@ -306,18 +341,18 @@ const Profile = () => {
                     value={profileData.position}
                     readOnly
                     disabled={!isEditing}
-                    className={`w-full px-3 py-2 border rounded-lg ${
+                    className={`w-full px-3 py-2 text-sm border rounded-lg ${
                       isEditing ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' : 'bg-transparent border-transparent'
                     }`}
                   />
                 ) : (
-                  <p className="text-gray-900 py-2">{profileData.position}</p>
+                  <p className="text-sm sm:text-base text-gray-900 py-2">{profileData.position}</p>
                 )}
               </div>
 
               <div className="md:col-span-2">
-                <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                  <MapPin className="w-4 h-4 mr-2" />
+                <label className="flex items-center text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                  <MapPin className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                   Alamat
                 </label>
                 {isEditing ? (
@@ -326,22 +361,22 @@ const Profile = () => {
                     value={profileData.address}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 ) : (
-                  <p className="text-gray-900 py-2">{profileData.address}</p>
+                  <p className="text-sm sm:text-base text-gray-900 py-2">{profileData.address}</p>
                 )}
               </div>
             </div>
 
             {isEditing && (
-              <div className="flex justify-end mt-6 pt-6 border-t border-gray-200">
+              <div className="flex justify-end mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
                 <button
                   onClick={handleSaveProfile}
-                  className="flex items-center space-x-2 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+                  className="flex items-center justify-center space-x-2 bg-green-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto"
                 >
                   <Save className="w-4 h-4" />
-                  <span>Simpan Perubahan</span>
+                  <span className="text-sm sm:text-base">Simpan Perubahan</span>
                 </button>
               </div>
             )}
@@ -350,72 +385,99 @@ const Profile = () => {
       </div>
 
       {/* Security Section */}
-      <div className="lg:col-span-1 flex flex-col p-6 bg-white/60 rounded-2xl shadow-lg border border-gray-200">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Keamanan</h3>
+      <div className="flex flex-col p-4 sm:p-6 bg-white/60 rounded-2xl shadow-lg border border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 sm:mb-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">Keamanan</h3>
           <button
             onClick={() => setShowPasswordForm(!showPasswordForm)}
-            className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+            className="flex items-center justify-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 w-full sm:w-auto"
           >
             <Lock className="w-4 h-4" />
-            <span>Ubah Password</span>
+            <span className="text-sm sm:text-base">Ubah Password</span>
           </button>
         </div>
 
         {showPasswordForm && (
-          <form onSubmit={handleChangePassword} className="max-w-md space-y-4">
+          <form onSubmit={handleChangePassword} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Password Saat Ini
               </label>
-              <input
-                type="password"
-                name="currentPassword"
-                value={passwordData.currentPassword}
-                onChange={handlePasswordChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative">
+                <input
+                  type={showPasswords.current ? "text" : "password"}
+                  name="currentPassword"
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordChange}
+                  required
+                  className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords({...showPasswords, current: !showPasswords.current})}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Password Baru
               </label>
-              <input
-                type="password"
-                name="newPassword"
-                value={passwordData.newPassword}
-                onChange={handlePasswordChange}
-                required
-                minLength={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative">
+                <input
+                  type={showPasswords.new ? "text" : "password"}
+                  name="newPassword"
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
+                  required
+                  minLength={6}
+                  className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                 Konfirmasi Password Baru
               </label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={passwordData.confirmPassword}
-                onChange={handlePasswordChange}
-                required
-                minLength={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative">
+                <input
+                  type={showPasswords.confirm ? "text" : "password"}
+                  name="confirmPassword"
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordChange}
+                  required
+                  minLength={6}
+                  className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => setShowPasswordForm(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
+                className="px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 w-full sm:w-auto"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
               >
                 Ubah Password
               </button>

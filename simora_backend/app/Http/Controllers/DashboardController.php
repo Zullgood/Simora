@@ -13,8 +13,12 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        // Count only employees (not admin users)
+        $totalEmployees = Employee::count();
+        \Log::info('Dashboard Stats - Total Employees from employees table: ' . $totalEmployees);
+        
         $stats = [
-            'total_employees' => Employee::count(),
+            'total_employees' => $totalEmployees,
             'total_drivers' => Driver::count(),
             'total_cars' => Car::count(),
             'total_bookings' => Booking::count(),

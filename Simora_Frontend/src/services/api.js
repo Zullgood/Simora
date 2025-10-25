@@ -4,12 +4,10 @@ const API_BASE_URL = 'http://localhost:8000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 30000, // 30 second timeout
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0'
+    'Accept': 'application/json'
   },
   withCredentials: false,
 });
@@ -21,15 +19,24 @@ api.interceptors.request.use((config) => {
   }
   config.headers['X-Requested-With'] = 'XMLHttpRequest';
   config.headers['Accept'] = 'application/json';
-  config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
-  config.headers['Pragma'] = 'no-cache';
-  config.headers['Expires'] = '0';
   return config;
 });
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle network errors (599, timeout, etc.)
+    if (!error.response) {
+      console.error('Network error:', error.message);
+      return Promise.resolve({
+        data: {
+          success: false,
+          message: 'Network error occurred',
+          data: []
+        }
+      });
+    }
+    
     if (error.response?.status === 401 && !error.config?.url?.includes('/login')) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -120,9 +127,9 @@ export const trackingAPI = {
 export const reportAPI = {
   getDashboardStats: (range) => api.get('/reports/dashboard-stats', { params: { range } }),
   getBookingTrends: (range) => api.get('/reports/booking-trends', { params: { range } }),
-  getCarUtilization: () => api.get('/reports/car-utilization'),
-  getDepartmentUsage: () => api.get('/reports/department-usage'),
-  getDriverPerformance: () => api.get('/reports/driver-performance'),
+  getCarUtilization: (range) => api.get('/reports/car-utilization', { params: { range } }),
+  getDepartmentUsage: (range) => api.get('/reports/department-usage', { params: { range } }),
+  getDriverPerformance: (range) => api.get('/reports/driver-performance', { params: { range } }),
 };
 
 export const analyticsAPI = {

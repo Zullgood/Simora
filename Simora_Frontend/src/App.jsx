@@ -14,7 +14,7 @@ import Tracking from './pages/Tracking';
 import Reports from './pages/Reports';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
-import AdminUsers from './pages/AdminUsers';
+
 import SuperAdmin from './pages/SuperAdmin';
 import './App.css';
 
@@ -46,11 +46,7 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="admin-users" element={
-            <RoleProtectedRoute allowedRoles={['super_admin']}>
-              <AdminUsers />
-            </RoleProtectedRoute>
-          } />
+
           <Route path="super-admin" element={
             <RoleProtectedRoute allowedRoles={['super_admin']}>
               <SuperAdmin />

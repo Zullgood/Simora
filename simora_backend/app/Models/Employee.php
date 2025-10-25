@@ -16,6 +16,7 @@ class Employee extends Model
         'employee_id',
         'department',
         'position',
+        'role',
         'hire_date',
         'nik',
         'address',
@@ -25,7 +26,6 @@ class Employee extends Model
         'password',
         'android_username',
         'android_password',
-        'has_android_account',
         'status'
     ];
 
@@ -34,6 +34,11 @@ class Employee extends Model
     ];
 
     protected $hidden = [
-        // 'password' - removed so password can be returned to frontend
+        'password'
     ];
+
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
 }

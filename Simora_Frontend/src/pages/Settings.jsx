@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Settings as SettingsIcon, Bell, Shield, Database, Mail, Globe, Save, Eye, EyeOff } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('general');
@@ -40,7 +41,11 @@ const Settings = () => {
 
   const handleSave = () => {
     console.log('Saving settings:', settings);
-    alert('Pengaturan berhasil disimpan!');
+    Swal.fire({
+      icon: 'success',
+      title: 'Berhasil',
+      text: 'Pengaturan berhasil disimpan!'
+    });
   };
 
   const tabs = [

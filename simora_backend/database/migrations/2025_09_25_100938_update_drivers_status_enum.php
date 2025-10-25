@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up()
     {
-        DB::statement("ALTER TABLE drivers MODIFY COLUMN status ENUM('active', 'inactive', 'on_duty') DEFAULT 'active'");
+        DB::statement("ALTER TABLE drivers MODIFY COLUMN status ENUM('active', 'inactive', 'on_duty', 'booked') DEFAULT 'active'");
     }
 
     public function down()

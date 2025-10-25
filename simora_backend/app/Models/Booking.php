@@ -19,9 +19,12 @@ class Booking extends Model
         'pickup_time',
         'return_time',
         'passenger_count',
+        'passenger_names',
         'purpose',
         'status',
         'notes',
+        'rejection_reason',
+        'rejected_by',
         'approved_at',
         'completed_at',
     ];

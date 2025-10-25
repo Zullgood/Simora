@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, CreditCard, Calendar, MapPin, AlertCircle } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 const DriverModal = ({ isOpen, onClose, onSave, driver = null, isEdit = false }) => {
   const [formData, setFormData] = useState({
@@ -118,7 +119,11 @@ const DriverModal = ({ isOpen, onClose, onSave, driver = null, isEdit = false })
       // Pastikan data tidak terlalu besar
       const dataSize = JSON.stringify(formData).length;
       if (dataSize > 1024 * 1024) { // 1MB limit
-        alert('Data terlalu besar. Silakan gunakan foto yang lebih kecil.');
+        Swal.fire({
+          icon: 'error',
+          title: 'Data Terlalu Besar',
+          text: 'Silakan gunakan foto yang lebih kecil.'
+        });
         return;
       }
       
@@ -126,7 +131,11 @@ const DriverModal = ({ isOpen, onClose, onSave, driver = null, isEdit = false })
       onClose();
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert('Gagal menyimpan data. Silakan coba lagi.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal Menyimpan',
+        text: 'Silakan coba lagi.'
+      });
     }
   };
 
@@ -174,7 +183,11 @@ const DriverModal = ({ isOpen, onClose, onSave, driver = null, isEdit = false })
                   if (file) {
                     // Validasi ukuran file (max 2MB)
                     if (file.size > 2 * 1024 * 1024) {
-                      alert('Ukuran foto maksimal 2MB');
+                      Swal.fire({
+                        icon: 'error',
+                        title: 'Ukuran Terlalu Besar',
+                        text: 'Ukuran foto maksimal 2MB'
+                      });
                       return;
                     }
                     

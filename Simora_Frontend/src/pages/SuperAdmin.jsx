@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, Shield } from 'lucide-react';
 import { superAdminAPI } from '../services/superAdminAPI';
+import Swal from 'sweetalert2';
 
 const SuperAdmin = () => {
   const [adminUsers, setAdminUsers] = useState([]);
@@ -63,13 +64,33 @@ const SuperAdmin = () => {
   };
 
   const handleDeleteUser = async (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus super admin ini?')) {
+    const result = await Swal.fire({
+      title: 'Konfirmasi Hapus',
+      text: 'Apakah Anda yakin ingin menghapus super admin ini?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal'
+    });
+
+    if (result.isConfirmed) {
       try {
         await superAdminAPI.delete(id);
         fetchAdminUsers();
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil',
+          text: 'Super admin berhasil dihapus'
+        });
       } catch (error) {
         console.error('Error deleting super admin:', error);
-        alert('Gagal menghapus super admin');
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal',
+          text: 'Gagal menghapus super admin'
+        });
       }
     }
   };
@@ -95,11 +116,15 @@ const SuperAdmin = () => {
         const errors = error.response.data.errors;
         const errorList = Object.entries(errors).map(([field, messages]) => {
           return `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`;
-        }).join('\n');
-        errorMessage = `Validasi gagal:\n${errorList}`;
+        }).join('<br>');
+        errorMessage = `Validasi gagal:<br>${errorList}`;
       }
       
-      alert(errorMessage);
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal Menyimpan',
+        html: errorMessage
+      });
     }
   };
 
@@ -138,13 +163,6 @@ const SuperAdmin = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Super Admin Panel</h1>
           <p className="text-gray-600 mt-2">Kelola semua admin dan super admin</p>
         </div>
-        <button
-          onClick={handleAddUser}
-          className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Super Admin</span>
-        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

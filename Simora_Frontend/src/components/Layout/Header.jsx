@@ -43,6 +43,14 @@ const Header = ({ toggleSidebar }) => {
       });
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      // Use fallback data when API fails
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      setUserProfile({
+        name: user.name || 'Admin Simora',
+        position: user.position || user.role || 'HRD Manager',
+        email: user.email || 'admin@simora.com',
+        avatar: null
+      });
     }
   };
   
@@ -57,7 +65,7 @@ const Header = ({ toggleSidebar }) => {
       setNotifications(recentNotifications);
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      // Fallback to empty array on error
+      // Fallback to empty array on error - suppress 404 errors
       setNotifications([]);
     }
   };
@@ -68,6 +76,8 @@ const Header = ({ toggleSidebar }) => {
       setUnreadCount(response.data.count || 0);
     } catch (error) {
       console.error('Error fetching unread count:', error);
+      // Set to 0 when API fails
+      setUnreadCount(0);
     }
   };
   

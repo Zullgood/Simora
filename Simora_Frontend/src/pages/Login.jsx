@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { authAPI } from '../services/api';
 import Swal from 'sweetalert2';
 
@@ -19,6 +19,51 @@ const Login = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleForgotPassword = async () => {
+    const result = await Swal.fire({
+      title: 'Lupa Password?',
+      html: `
+        <div style="text-align: left; padding: 10px;">
+          <p style="margin-bottom: 15px; color: #666;">Masukkan email Anda untuk reset password:</p>
+          <input 
+            id="reset-email" 
+            type="email"
+            placeholder="admin@simora.com"
+            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;"
+          />
+          <p style="margin-top: 10px; font-size: 12px; color: #999;">Link reset password akan dikirim ke email Anda</p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Kirim Link Reset',
+      cancelButtonText: 'Batal',
+      preConfirm: () => {
+        const email = document.getElementById('reset-email').value;
+        if (!email) {
+          Swal.showValidationMessage('Email harus diisi');
+          return false;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          Swal.showValidationMessage('Format email tidak valid');
+          return false;
+        }
+        return email;
+      }
+    });
+
+    if (result.isConfirmed && result.value) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Link Terkirim!',
+        text: `Link reset password telah dikirim ke ${result.value}. Silakan cek email Anda.`,
+        confirmButtonColor: '#3b82f6'
+      });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -76,8 +121,8 @@ const Login = () => {
       <div className="relative z-10 w-full max-w-6xl flex flex-col lg:flex-row items-center justify-center lg:justify-between gap-6 sm:gap-8 lg:gap-0">
         <div className="flex-1 pr-12 hidden lg:block">
           <div className="flex items-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl mr-4 shadow-lg">
-              <Car className="w-10 h-10 text-white" />
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl mr-4 shadow-lg p-3">
+              <img src="/logo.png" alt="SIMORA Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <h1 className="text-5xl font-bold text-white mb-2 drop-shadow-lg">Simora</h1>
@@ -114,8 +159,8 @@ const Login = () => {
         <div className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg animate-fade-in-up">
           <div className="bg-white/15 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-2xl border border-white/30 p-4 sm:p-6 md:p-8 lg:p-10 hover:bg-white/20 transition-all duration-300">
             <div className="lg:hidden text-center mb-4 sm:mb-6 md:mb-8">
-              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg sm:rounded-xl md:rounded-2xl mb-2 sm:mb-3 md:mb-4 shadow-lg">
-                <Car className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
+              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-white rounded-lg sm:rounded-xl md:rounded-2xl mb-2 sm:mb-3 md:mb-4 shadow-lg p-2">
+                <img src="/logo.png" alt="SIMORA Logo" className="w-full h-full object-contain" />
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-1 drop-shadow-lg">Simora</h1>
               <p className="text-white/80 text-xs sm:text-sm drop-shadow-md">Admin Dashboard</p>
@@ -175,7 +220,11 @@ const Login = () => {
                   <input type="checkbox" className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 bg-white/20 border-white/30 rounded focus:ring-blue-400 focus:ring-2" />
                   <span className="ml-2 text-xs sm:text-sm text-white/90 font-medium group-hover:text-white transition-colors">Ingat saya</span>
                 </label>
-                <button type="button" className="text-xs sm:text-sm text-blue-300 hover:text-blue-100 font-semibold transition-all duration-200 hover:underline">
+                <button 
+                  type="button" 
+                  onClick={handleForgotPassword}
+                  className="text-xs sm:text-sm text-blue-300 hover:text-blue-100 font-semibold transition-all duration-200 hover:underline"
+                >
                   Lupa password?
                 </button>
               </div>

@@ -42,12 +42,21 @@ const EmployeeModal = ({ isOpen, onClose, onSave, employee = null, isEdit = fals
         phone: employee.phone || '',
         employeeId: employee.employeeId || employee.employee_id || '',
         nik: employee.nik || '',
-        password: employee.password || '',
-        createAccount: !!(employee.nik && employee.password),
+        password: employee.android_password || '',
+        createAccount: !!(employee.android_username && employee.android_password),
         photo: employee.photo || '',
         department: employee.department || '',
         position: employee.position || '',
-        hireDate: employee.hireDate || employee.hire_date || '',
+        hireDate: (() => {
+          const dateValue = employee.hireDate || employee.hire_date;
+          if (!dateValue) return '';
+          try {
+            const date = new Date(dateValue);
+            return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+          } catch {
+            return '';
+          }
+        })(),
         address: employee.address || '',
         emergencyContact: employee.emergencyContact || employee.emergency_contact || '',
         emergencyPhone: employee.emergencyPhone || employee.emergency_phone || '',
@@ -312,12 +321,8 @@ const EmployeeModal = ({ isOpen, onClose, onSave, employee = null, isEdit = fals
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Pilih Departemen</option>
-                <option value="HRD/GA">HRD/GA</option>
-                <option value="IT">IT</option>
-                <option value="Marketing">Marketing</option>
                 <option value="Legal">Legal</option>
                 <option value="TOM">TOM</option>
-                <option value="Finance Accounting">Finance Accounting</option>
                 <option value="Comdev">Comdev</option>
                 <option value="P&D">P&D</option>
                 <option value="Surveyor">Surveyor</option>
@@ -430,7 +435,7 @@ const EmployeeModal = ({ isOpen, onClose, onSave, employee = null, isEdit = fals
                 </div>
                 <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded">
                   <p><strong>Login Info:</strong></p>
-                  <p>Username: {formData.nik || 'NIK akan digunakan sebagai username'}</p>
+                  <p>Username: {formData.email || 'NIK akan digunakan sebagai username'}</p>
                   <p>Password: {formData.password || 'Password akan ditampilkan setelah dibuat'}</p>
                 </div>
               </div>

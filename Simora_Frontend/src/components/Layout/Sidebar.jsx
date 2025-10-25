@@ -53,6 +53,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       });
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      // Use fallback data when API fails
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      setUserProfile({
+        name: user.name || 'Admin Simora',
+        department: user.department || user.position || 'HRD/GA',
+        avatar: null
+      });
     }
   };
 
@@ -61,7 +68,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       id: 'home',
       label: 'Home',
       icon: Home,
-      path: '/',
+      
       subItems: [
         { label: 'Dashboard', path: '/' },
         { label: 'Overview', path: '/overview' },
@@ -104,12 +111,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       icon: FileText,
       path: '/reports'
     },
-    {
-      id: 'admin-users',
-      label: 'Admin Users',
-      icon: UserCheck,
-      path: '/admin-users'
-    },
+
     {
       id: 'super-admin',
       label: 'Super Admin',
@@ -158,8 +160,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-700 animate-fade-in">
           <div className="flex items-center space-x-3 group">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg">
-              <Car className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg p-1">
+              <img src="/logo.png" alt="SIMORA Logo" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent group-hover:from-blue-200 group-hover:to-white transition-all duration-300">Simora</h1>
           </div>

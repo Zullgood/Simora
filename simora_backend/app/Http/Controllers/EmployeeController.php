@@ -19,7 +19,7 @@ class EmployeeController extends Controller
         
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'email' => 'required|email|max:100|unique:employees',
+            'email' => 'required|email|max:100|unique:employees,email|unique:users,email',
             'phone' => 'required|string|max:20',
             'employee_id' => 'required|string|max:50|unique:employees',
             'department' => 'required|string|max:50',
@@ -56,7 +56,7 @@ class EmployeeController extends Controller
         
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:100',
-            'email' => 'sometimes|required|email|max:100|unique:employees,email,' . $employee->id,
+            'email' => 'sometimes|required|email|max:100|unique:employees,email,' . $employee->id . '|unique:users,email',
             'phone' => 'sometimes|required|string|max:20',
             'employee_id' => 'sometimes|required|string|max:50|unique:employees,employee_id,' . $employee->id,
             'department' => 'sometimes|required|string|max:50',

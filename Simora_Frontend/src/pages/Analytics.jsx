@@ -16,34 +16,29 @@ const Analytics = () => {
     fetchAnalyticsData();
   }, []);
 
-  const fetchAnalyticsData = async (retryCount = 0) => {
+  const fetchAnalyticsData = async () => {
     try {
       const response = await analyticsAPI.getAnalytics();
-      console.log('Analytics response:', response.data);
-      
       if (response.data.success) {
-        setAnalyticsData(response.data.data);
+        // Map backend data to frontend format
+        const backendData = response.data.data;
+        setAnalyticsData({
+          monthly_bookings: backendData.monthlyTrends || [],
+          purpose_data: backendData.purposeData || [],
+          booking_status: backendData.bookingStatus || [],
+          top_drivers: backendData.driverPerformance || [],
+          summary: backendData.stats || {}
+        });
       } else {
-        throw new Error(response.data.message || 'API returned error');
+        throw new Error('API returned error');
       }
     } catch (error) {
       console.error('Error fetching analytics data:', error);
-      console.error('Error details:', error.response?.data);
-      
-      // Retry once if first attempt fails
-      if (retryCount < 1) {
-        console.log('Retrying analytics request...');
-        setTimeout(() => fetchAnalyticsData(retryCount + 1), 1000);
-        return;
-      }
-      
-      // Fallback ke data dummy jika API gagal setelah retry
-      console.log('Using fallback data for analytics');
       setAnalyticsData({
         monthly_bookings: [
-          { month: 1, count: 5 },
-          { month: 2, count: 8 },
-          { month: 3, count: 12 }
+          { month: 'Jan', bookings: 5 },
+          { month: 'Feb', bookings: 8 },
+          { month: 'Mar', bookings: 12 }
         ],
         purpose_data: [
           { purpose: 'Dinas Luar', count: 15 },
@@ -56,17 +51,13 @@ const Analytics = () => {
           { status: 'pending', count: 8 }
         ],
         top_drivers: [
-          { id: 1, name: 'Ahmad Supir', phone: '081234567890', license_number: 'B1234567', booking_count: 15 },
-          { id: 2, name: 'Budi Driver', phone: '081234567891', license_number: 'B1234568', booking_count: 12 }
+          { id: 1, name: 'Ahmad Supir', phone: '081234567890', license_number: 'B1234567', trips: 15 },
+          { id: 2, name: 'Budi Driver', phone: '081234567891', license_number: 'B1234568', trips: 12 }
         ],
         summary: {
-          total_bookings: 33,
-          active_bookings: 5,
-          completed_bookings: 20,
-          total_cars: 10,
-          available_cars: 7,
-          total_drivers: 8,
-          active_drivers: 6
+          totalBookings: 33,
+          totalCars: 10,
+          totalDrivers: 8
         }
       });
     }
@@ -83,8 +74,8 @@ const Analytics = () => {
 
   // Process monthly data
   const monthlyData = analyticsData?.monthly_bookings?.map(item => ({
-    month: getMonthName(item.month),
-    bookings: item.count
+    month: item.month || getMonthName(item.month),
+    bookings: item.bookings || item.count || 0
   })) || [];
 
   // Process purpose data
@@ -147,7 +138,7 @@ const Analytics = () => {
                 labelStyle={{ fontSize: '12px' }}
               >
                 {(purposeData.length > 0 ? purposeData : [{ name: 'Belum ada data', value: 1, color: '#e5e7eb' }]).map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell key={`purpose-${index}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip />
@@ -172,7 +163,7 @@ const Analytics = () => {
               labelStyle={{ fontSize: '12px' }}
             >
               {(statusData.length > 0 ? statusData : [{ name: 'Belum ada data', value: 1, color: '#e5e7eb' }]).map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
+                <Cell key={`status-${index}`} fill={entry.color} />
               ))}
             </Pie>
             <Tooltip />
@@ -196,12 +187,12 @@ const Analytics = () => {
             </thead>
             <tbody>
               {analyticsData.top_drivers?.length > 0 ? (
-                analyticsData.top_drivers.slice(0, 10).map((driver) => (
-                  <tr key={driver.id} className="border-b hover:bg-gray-50">
+                analyticsData.top_drivers.slice(0, 10).map((driver, index) => (
+                  <tr key={driver.id || `driver-${index}`} className="border-b hover:bg-gray-50">
                     <td className="py-3 text-sm text-gray-900">{driver.name}</td>
                     <td className="py-3 text-sm text-gray-600">{driver.phone}</td>
                     <td className="py-3 text-sm text-gray-600">{driver.license_number}</td>
-                    <td className="py-3 text-sm text-gray-600">{driver.booking_count || 0} booking</td>
+                    <td className="py-3 text-sm text-gray-600">{driver.trips || driver.booking_count || 0} booking</td>
                   </tr>
                 ))
               ) : (
@@ -218,12 +209,12 @@ const Analytics = () => {
         {/* Mobile Cards */}
         <div className="md:hidden space-y-3">
           {analyticsData.top_drivers?.length > 0 ? (
-            analyticsData.top_drivers?.slice(0, 10).map((driver) => (
-              <div key={driver.id} className="border border-gray-200 rounded-lg p-3">
+            analyticsData.top_drivers?.slice(0, 10).map((driver, index) => (
+              <div key={driver.id || `mobile-driver-${index}`} className="border border-gray-200 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium text-gray-900 text-sm">{driver.name}</h4>
                   <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {driver.booking_count || 0} booking
+                    {driver.trips || driver.booking_count || 0} booking
                   </span>
                 </div>
                 <div className="space-y-1 text-xs text-gray-600">

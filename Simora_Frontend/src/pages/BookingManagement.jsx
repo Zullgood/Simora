@@ -14,6 +14,8 @@ const BookingManagement = () => {
   const [employees, setEmployees] = useState([]);
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(false);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userRole = user.role || 'admin';
   const [showModal, setShowModal] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -29,6 +31,7 @@ const BookingManagement = () => {
     purpose: '',
     notes: '',
     passengers: 1,
+    passengerNames: [''],
     returnTime: ''
   });
 
@@ -76,7 +79,9 @@ const BookingManagement = () => {
   const fetchEmployees = async () => {
     try {
       const response = await employeeAPI.getAll();
+      console.log('Employees response:', response.data);
       const employeesData = response.data.data || [];
+      console.log('Employees data:', employeesData);
       setEmployees(employeesData);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -88,6 +93,7 @@ const BookingManagement = () => {
     try {
       const response = await driverAPI.getAll();
       const driversData = response.data.data || [];
+      console.log('Drivers data:', driversData.map(d => ({ id: d.id, name: d.name, status: d.status })));
       setDrivers(driversData);
     } catch (error) {
       console.error('Error fetching drivers:', error);
@@ -125,8 +131,21 @@ const BookingManagement = () => {
         car_id: selectedCar.id
       };
       
-      const response = await bookingAPI.approve(requestId, approveData);
-      await fetchAllData();
+      // Call backend API to approve booking
+      await bookingAPI.approve(requestId, approveData);
+      
+      // Force refresh data after successful approval
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+      await Promise.all([
+        fetchBookingRequests(),
+        fetchBookingHistory(),
+        fetchDrivers(),
+        fetchCars()
+      ]);
+      
+      // Force re-render by updating state
+      setDrivers([]);
+      await fetchDrivers();
       
       // Trigger notification
       const request = requests.find(r => r.id === requestId);
@@ -144,7 +163,7 @@ const BookingManagement = () => {
       Swal.fire({
         icon: 'success',
         title: 'Berhasil!',
-        text: `Booking berhasil disetujui!\nSupir: ${selectedDriver.name}\nMobil: ${selectedCar.brand} ${selectedCar.model}`
+        text: `Booking berhasil disetujui!\nSupir: ${selectedDriver.name}\nMobil: ${selectedCar.brand} ${selectedCar.model}\n\nStatus supir dan mobil telah diperbarui.`
       });
       
     } catch (error) {
@@ -158,61 +177,165 @@ const BookingManagement = () => {
   };
 
   const handleReject = async (requestId) => {
-    try {
-      const rejectData = { notes: 'Ditolak oleh admin' };
-      await bookingAPI.reject(requestId, rejectData);
-      
-      // Trigger notification
-      const request = requests.find(r => r.id === requestId);
-      if (request) {
-        window.dispatchEvent(new CustomEvent('bookingStatusUpdate', {
-          detail: {
-            bookingId: requestId,
-            status: 'rejected',
-            employeeName: request.employee?.name || 'Unknown',
-            destination: request.destination || 'Unknown'
-          }
-        }));
+    const result = await Swal.fire({
+      title: 'Alasan Penolakan',
+      html: `
+        <div style="text-align: left justify-content: center">
+          <p style="margin-bottom: 10px; color: #666;">Masukkan alasan penolakan booking ini:</p>
+          <textarea 
+            id="rejection-reason" 
+            class="justify-content: center" 
+            placeholder="Contoh: Masukan alasannya"
+            style="width: 100%; min-height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;"
+          ></textarea>
+          <p style="margin-top: 10px; font-size: 12px; color: #999;">Minimal 10 karakter</p>
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Tolak Booking',
+      cancelButtonText: 'Batal',
+      preConfirm: () => {
+        const reason = document.getElementById('rejection-reason').value;
+        if (!reason || reason.trim().length < 10) {
+          Swal.showValidationMessage('Alasan penolakan minimal 10 karakter');
+          return false;
+        }
+        return reason;
       }
-      
-      await fetchAllData();
-      Swal.fire({
-        icon: 'success',
-        title: 'Berhasil!',
-        text: 'Booking berhasil ditolak!'
-      });
-    } catch (error) {
-      console.error('Error rejecting booking:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal!',
-        text: 'Gagal menolak booking: ' + (error.response?.data?.message || error.message)
-      });
+    });
+
+    if (result.isConfirmed && result.value) {
+      try {
+        const adminName = JSON.parse(localStorage.getItem('user'))?.name || 'Admin';
+        const rejectData = { 
+          rejection_reason: result.value,
+          rejected_by: adminName
+        };
+        await bookingAPI.reject(requestId, rejectData);
+        
+        // Trigger notification
+        const request = requests.find(r => r.id === requestId);
+        if (request) {
+          window.dispatchEvent(new CustomEvent('bookingStatusUpdate', {
+            detail: {
+              bookingId: requestId,
+              status: 'rejected',
+              employeeName: request.employee?.name || 'Unknown',
+              destination: request.destination || 'Unknown'
+            }
+          }));
+        }
+        
+        await fetchAllData();
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil!',
+          text: 'Booking berhasil ditolak!'
+        });
+      } catch (error) {
+        console.error('Error rejecting booking:', error);
+        let errorMessage = 'Gagal menolak booking';
+        if (error.response?.data?.errors) {
+          const errors = Object.values(error.response.data.errors).flat();
+          errorMessage = errors.join(', ');
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        }
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal!',
+          text: errorMessage
+        });
+      }
     }
   };
 
   const handleCompleteBooking = async (bookingId) => {
-    if (confirm('Tandai booking ini sebagai selesai?')) {
+    const result = await Swal.fire({
+      title: 'Konfirmasi',
+      text: 'Tandai booking ini sebagai selesai?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Selesaikan',
+      cancelButtonText: 'Batal'
+    });
+
+    if (result.isConfirmed) {
       try {
-        await bookingAPI.update(bookingId, { status: 'completed' });
+        // Try PATCH method first
+        try {
+          await bookingAPI.updateStatus(bookingId, 'completed');
+        } catch (patchError) {
+          console.log('PATCH failed, trying PUT method:', patchError);
+          // Fallback to PUT method if PATCH fails
+          await bookingAPI.update(bookingId, { status: 'completed' });
+        }
+        
         await fetchAllData();
-        alert('Booking berhasil diselesaikan!');
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil!',
+          text: 'Booking berhasil diselesaikan!'
+        });
       } catch (error) {
         console.error('Error completing booking:', error);
-        alert('Gagal menyelesaikan booking: ' + (error.response?.data?.message || error.message));
+        console.error('Error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message
+        });
+        
+        let errorMessage = 'Gagal menyelesaikan booking';
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal!',
+          text: errorMessage
+        });
       }
     }
   };
 
   const handleDelete = async (requestId) => {
-    if (confirm('Hapus booking ini?')) {
+    const result = await Swal.fire({
+      title: 'Konfirmasi Hapus',
+      text: 'Apakah Anda yakin ingin menghapus booking ini?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal'
+    });
+
+    if (result.isConfirmed) {
       try {
         await bookingAPI.delete(requestId);
         await fetchAllData();
-        alert('Booking berhasil dihapus!');
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil!',
+          text: 'Booking berhasil dihapus!'
+        });
       } catch (error) {
         console.error('Error deleting booking:', error);
-        alert('Gagal menghapus booking: ' + (error.response?.data?.message || error.message));
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal!',
+          text: 'Gagal menghapus booking: ' + (error.response?.data?.message || error.message)
+        });
       }
     }
   };
@@ -221,9 +344,18 @@ const BookingManagement = () => {
     e.preventDefault();
     
     try {
-      const selectedEmployee = employees.find(emp => emp.name === formData.employeeName);
+      // Ambil pegawai pertama sebagai pembuat booking
+      const firstEmployeeName = formData.passengerNames[0];
+      console.log('First employee name:', firstEmployeeName);
+      console.log('Available employees:', employees.map(emp => emp.name));
+      const selectedEmployee = employees.find(emp => emp.name === firstEmployeeName);
+      console.log('Selected employee:', selectedEmployee);
       if (!selectedEmployee) {
-        alert('Pegawai tidak ditemukan');
+        Swal.fire({
+          icon: 'warning',
+          title: 'Peringatan',
+          text: 'Pegawai tidak ditemukan'
+        });
         return;
       }
       
@@ -235,6 +367,7 @@ const BookingManagement = () => {
         purpose: formData.purpose,
         notes: formData.notes || '',
         passenger_count: parseInt(formData.passengers) || 1,
+        passenger_names: formData.passengerNames.filter(name => name.trim() !== '').join(', '),
         return_time: formData.returnTime || null
       };
       
@@ -247,7 +380,11 @@ const BookingManagement = () => {
       await fetchAllData();
       setShowModal(false);
       setActiveTab('requests');
-      alert(editingRequest ? 'Booking berhasil diupdate!' : 'Booking berhasil dibuat!');
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil!',
+        text: editingRequest ? 'Booking berhasil diupdate!' : 'Booking berhasil dibuat!'
+      });
       
     } catch (error) {
       console.error('Error saving booking:', error);
@@ -258,7 +395,11 @@ const BookingManagement = () => {
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
-      alert(`Error: ${errorMessage}`);
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal!',
+        text: `Error: ${errorMessage}`
+      });
     }
   };
 
@@ -273,6 +414,7 @@ const BookingManagement = () => {
       purpose: '',
       notes: '',
       passengers: 1,
+      passengerNames: [''],
       returnTime: ''
     });
     setShowModal(true);
@@ -431,7 +573,7 @@ const BookingManagement = () => {
               {requests.length === 0 ? (
                 <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-gray-200">
                   <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center">
-                    <Clock className="w-12 h-12 mb-4 text-gray-300" />
+                    <Clock className="w-12 h-12 mb-4 text-gray-300 animate-spin" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada pengajuan baru</h3>
                   <p className="text-gray-500">Semua pengajuan booking telah diproses</p>
@@ -475,8 +617,11 @@ const BookingManagement = () => {
                                 <div>
                                   <div className="text-sm font-medium text-gray-900 max-w-xs truncate">{request.destination}</div>
                                   <div className="text-xs text-gray-500">
-                                    {request.passenger_count || 1} penumpang
+                                    {request.passenger_count || 1} pegawai
                                   </div>
+                                  {request.passenger_names && (
+                                    <div className="text-xs text-gray-400 mt-1">{request.passenger_names}</div>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-6 py-5">
@@ -508,11 +653,21 @@ const BookingManagement = () => {
                                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500"
                                   >
                                     <option value="">Pilih Mobil</option>
-                                    {cars.filter(car => car.status !== 'booked' && car.status !== 'maintenance').map((car) => (
-                                      <option key={car.id} value={car.id}>
-                                        {car.brand} {car.model} - {car.license_plate}
-                                      </option>
-                                    ))}
+                                    {cars
+                                      .filter(car => {
+                                        const capacity = car.capacity || 4;
+                                        const passengerCount = request.passenger_count || 1;
+                                        return car.status !== 'booked' && car.status !== 'maintenance' && capacity >= passengerCount;
+                                      })
+                                      .sort((a, b) => (a.capacity || 4) - (b.capacity || 4))
+                                      .map((car) => {
+                                        const capacity = car.capacity || 4;
+                                        return (
+                                          <option key={car.id} value={car.id}>
+                                          {car.brand} {car.model} - {car.license_plate} (Kapasitas: {capacity})
+                                          </option>
+                                        );
+                                      })}
                                   </select>
                                 </div>
                               </td>
@@ -531,7 +686,11 @@ const BookingManagement = () => {
                                       if (driverSelect.value && carSelect.value) {
                                         handleApprove(request.id, driverSelect.value, carSelect.value);
                                       } else {
-                                        alert('Pilih supir dan mobil terlebih dahulu!');
+                                        Swal.fire({
+                                          icon: 'warning',
+                                          title: 'Peringatan',
+                                          text: 'Pilih supir dan mobil terlebih dahulu!'
+                                        });
                                       }
                                     }}
                                     className="px-3 py-2 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
@@ -576,9 +735,15 @@ const BookingManagement = () => {
                             <span className="text-sm">{request.return_time ? formatTime(request.return_time) : '-'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Penumpang:</span>
-                            <span className="text-sm">{request.passenger_count || 1} orang</span>
+                            <span className="text-sm text-gray-600">Jumlah Pegawai:</span>
+                            <span className="text-sm">{request.passenger_count || 0} orang</span>
                           </div>
+                          {request.passenger_names && (
+                            <div>
+                              <span className="text-sm text-gray-600">Pegawai yang Ikut:</span>
+                              <div className="text-sm font-medium mt-1">{request.passenger_names}</div>
+                            </div>
+                          )}
                         </div>
                         
                         <div className="space-y-3">
@@ -604,11 +769,21 @@ const BookingManagement = () => {
                               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500"
                             >
                               <option value="">Pilih Mobil</option>
-                              {cars.filter(car => car.status !== 'booked' && car.status !== 'maintenance').map((car) => (
-                                <option key={car.id} value={car.id}>
-                                  {car.brand} {car.model} - {car.license_plate}
-                                </option>
-                              ))}
+                              {cars
+                                .filter(car => {
+                                  const capacity = car.capacity || 4;
+                                  const passengerCount = request.passenger_count || 1;
+                                  return car.status !== 'booked' && car.status !== 'maintenance' && capacity >= passengerCount;
+                                })
+                                .sort((a, b) => (a.capacity || 4) - (b.capacity || 4))
+                                .map((car) => {
+                                  const capacity = car.capacity || 4;
+                                  return (
+                                    <option key={car.id} value={car.id}>
+                                      ✓ {car.brand} {car.model} - {car.license_plate} (Kapasitas: {capacity})
+                                    </option>
+                                  );
+                                })}
                             </select>
                           </div>
                           
@@ -626,7 +801,11 @@ const BookingManagement = () => {
                                 if (driverSelect.value && carSelect.value) {
                                   handleApprove(request.id, driverSelect.value, carSelect.value);
                                 } else {
-                                  alert('Pilih supir dan mobil terlebih dahulu!');
+                                  Swal.fire({
+                                    icon: 'warning',
+                                    title: 'Peringatan',
+                                    text: 'Pilih supir dan mobil terlebih dahulu!'
+                                  });
                                 }
                               }}
                               className="flex-1 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
@@ -694,6 +873,7 @@ const BookingManagement = () => {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu Selesai</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supir</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keterangan</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                           </tr>
                         </thead>
@@ -708,7 +888,10 @@ const BookingManagement = () => {
                               </td>
                               <td className="px-6 py-4">
                                 <div className="text-sm text-gray-900 max-w-xs truncate">{booking.destination}</div>
-                                <div className="text-sm text-gray-500">{booking.passenger_count || 1} penumpang</div>
+                                <div className="text-sm text-gray-500">{booking.passenger_count || 1} pegawai</div>
+                                {booking.passenger_names && (
+                                  <div className="text-xs text-gray-400 mt-1">{booking.passenger_names}</div>
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {formatDate(booking.pickup_date)}
@@ -727,6 +910,18 @@ const BookingManagement = () => {
                                   {getStatusText(booking.status)}
                                 </span>
                               </td>
+                              <td className="px-6 py-4">
+                                {booking.status === 'rejected' && booking.rejection_reason ? (
+                                  <div>
+                                    <p className="text-sm text-gray-900 max-w-xs">{booking.rejection_reason}</p>
+                                    {booking.rejected_by && (
+                                      <p className="text-xs text-gray-500 mt-1">Oleh: {booking.rejected_by}</p>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-gray-400">-</span>
+                                )}
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div className="flex space-x-2">
                                   {booking.status === 'approved' && (
@@ -738,13 +933,15 @@ const BookingManagement = () => {
                                       <CheckCircle className="w-5 h-5" />
                                     </button>
                                   )}
-                                  <button
-                                    onClick={() => handleDelete(booking.id)}
-                                    className="text-red-600 hover:text-red-900"
-                                    title="Hapus"
-                                  >
-                                    <Trash2 className="w-5 h-5" />
-                                  </button>
+                                  {userRole === 'super_admin' && (
+                                    <button
+                                      onClick={() => handleDelete(booking.id)}
+                                      className="text-red-600 hover:text-red-900"
+                                      title="Hapus"
+                                    >
+                                      <Trash2 className="w-5 h-5" />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -790,9 +987,24 @@ const BookingManagement = () => {
                             <span className="text-sm">{booking.driver?.name || 'Belum ditentukan'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Penumpang:</span>
-                            <span className="text-sm">{booking.passenger_count || 1} orang</span>
+                            <span className="text-sm text-gray-600">Jumlah Pegawai:</span>
+                            <span className="text-sm">{booking.passenger_count || 0} orang</span>
                           </div>
+                          {booking.passenger_names && (
+                            <div>
+                              <span className="text-sm text-gray-600">Pegawai yang Ikut:</span>
+                              <div className="text-sm font-medium mt-1">{booking.passenger_names}</div>
+                            </div>
+                          )}
+                          {booking.status === 'rejected' && booking.rejection_reason && (
+                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                              <span className="text-sm font-semibold text-red-800">Alasan Penolakan:</span>
+                              <p className="text-sm text-red-700 mt-1">{booking.rejection_reason}</p>
+                              {booking.rejected_by && (
+                                <p className="text-xs text-red-600 mt-1">Ditolak oleh: {booking.rejected_by}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                         
                         <div className="flex space-x-2 pt-2">
@@ -805,13 +1017,15 @@ const BookingManagement = () => {
                               <span>Selesai</span>
                             </button>
                           )}
-                          <button
-                            onClick={() => handleDelete(booking.id)}
-                            className="flex-1 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center space-x-1"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span>Hapus</span>
-                          </button>
+                          {userRole === 'super_admin' && (
+                            <button
+                              onClick={() => handleDelete(booking.id)}
+                              className="flex-1 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center space-x-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>Hapus</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -836,30 +1050,6 @@ const BookingManagement = () => {
             </h2>
             
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Pegawai</label>
-                <select
-                  value={formData.employeeName}
-                  onChange={(e) => {
-                    const selectedEmployee = employees.find(emp => emp.name === e.target.value);
-                    setFormData({
-                      ...formData, 
-                      employeeName: e.target.value,
-                      department: selectedEmployee ? selectedEmployee.department : ''
-                    });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  required
-                >
-                  <option value="">Pilih Pegawai</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.name}>
-                      {employee.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
@@ -908,17 +1098,71 @@ const BookingManagement = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah Penumpang</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah Pegawai</label>
                   <input
                     type="number"
                     min="1"
                     max="8"
                     value={formData.passengers}
-                    onChange={(e) => setFormData({...formData, passengers: parseInt(e.target.value)})}
+                    onChange={(e) => {
+                      const count = parseInt(e.target.value) || 1;
+                      const newNames = Array(count).fill('').map((_, i) => formData.passengerNames[i] || '');
+                      setFormData({...formData, passengers: count, passengerNames: newNames});
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
               </div>
+              
+              {/* Employee Names */}
+              {formData.passengers > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nama Pegawai yang Ikut
+                  </label>
+                  <div className="space-y-2">
+                    {Array.from({ length: formData.passengers }, (_, index) => (
+                      <div key={index}>
+                        <select
+                          value={formData.passengerNames[index] || ''}
+                          onChange={(e) => {
+                            const selectedName = e.target.value;
+                            const selectedEmployee = employees.find(emp => emp.name === selectedName);
+
+                            // salin array lama lalu update posisi index-nya
+                            const newNames = [...formData.passengerNames];
+                            newNames[index] = selectedName;
+
+                            // update data form
+                            setFormData({
+                              ...formData,
+                              passengerNames: newNames,
+                              department: selectedEmployee ? selectedEmployee.department : formData.department
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          required
+                        >
+                          <option value="">Pilih Pegawai {index + 1}</option>
+
+                          {employees
+                            // Filter agar nama yang sudah dipilih tidak muncul lagi
+                            .filter(
+                              (emp) =>
+                                !formData.passengerNames.includes(emp.name) ||
+                                emp.name === formData.passengerNames[index]
+                            )
+                            .map((employee) => (
+                              <option key={employee.id} value={employee.name}>
+                                {employee.name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tujuan</label>

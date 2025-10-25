@@ -25,7 +25,7 @@ const TrackingMap = ({ bookings, selectedBooking, onMarkerClick }) => {
   }, []);
 
   useEffect(() => {
-    if (mapInstanceRef.current && bookings.length > 0) {
+    if (mapInstanceRef.current) {
       updateMarkers();
     }
   }, [bookings, selectedBooking]);
@@ -55,6 +55,15 @@ const TrackingMap = ({ bookings, selectedBooking, onMarkerClick }) => {
 
     // Add markers for each booking
     bookings.forEach(booking => {
+      // Validate coordinates
+      const lat = booking.currentLocation?.lat || booking.lat || -6.2088;
+      const lng = booking.currentLocation?.lng || booking.lng || 106.8456;
+      
+      // Skip if coordinates are invalid
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return;
+      }
+      
       const isSelected = selectedBooking?.id === booking.id;
       
       // Create custom icon based on status
@@ -86,10 +95,7 @@ const TrackingMap = ({ bookings, selectedBooking, onMarkerClick }) => {
         iconAnchor: [15, 15]
       });
 
-      const marker = window.L.marker([
-        booking.currentLocation.lat,
-        booking.currentLocation.lng
-      ], { icon: customIcon }).addTo(mapInstanceRef.current);
+      const marker = window.L.marker([lat, lng], { icon: customIcon }).addTo(mapInstanceRef.current);
 
       // Add popup with booking info
       const popupContent = `
@@ -129,8 +135,21 @@ const TrackingMap = ({ bookings, selectedBooking, onMarkerClick }) => {
 
     // Fit map to show all markers
     if (markersRef.current.length > 0) {
-      const group = new window.L.featureGroup(markersRef.current);
-      mapInstanceRef.current.fitBounds(group.getBounds().pad(0.1));
+      try {
+        const group = new window.L.featureGroup(markersRef.current);
+        const bounds = group.getBounds();
+        if (bounds && bounds.isValid && bounds.isValid()) {
+          mapInstanceRef.current.fitBounds(bounds.pad(0.1));
+        } else {
+          mapInstanceRef.current.setView([-6.2088, 106.8456], 12);
+        }
+      } catch (error) {
+        console.warn('Error fitting map bounds:', error);
+        mapInstanceRef.current.setView([-6.2088, 106.8456], 12);
+      }
+    } else {
+      // No markers, set default view
+      mapInstanceRef.current.setView([-6.2088, 106.8456], 12);
     }
   };
 

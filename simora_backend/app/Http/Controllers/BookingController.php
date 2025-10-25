@@ -3,133 +3,158 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\Driver;
+use App\Models\Car;
 use Illuminate\Http\Request;
-
+use Illuminate\Http\JsonResponse;
 
 class BookingController extends Controller
 {
-    public function index()
+    public function index(): JsonResponse
     {
         $bookings = Booking::with(['employee', 'driver', 'car'])->get();
-        return response()->json(['success' => true, 'data' => $bookings]);
+        return response()->json(['data' => $bookings]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'destination' => 'required|string',
             'pickup_date' => 'required|date',
-            'pickup_time' => 'required|string',
-            'return_time' => 'nullable|string',
-            'passenger_count' => 'nullable|integer|min:1',
+            'pickup_time' => 'required',
+            'destination' => 'required|string',
             'purpose' => 'required|string',
             'notes' => 'nullable|string',
+            'passenger_count' => 'required|integer|min:1',
+            'passenger_names' => 'nullable|string',
+            'return_time' => 'nullable'
         ]);
 
-        $validated['status'] = 'pending';
         $booking = Booking::create($validated);
-        $booking->load(['employee', 'driver', 'car']);
+        return response()->json(['data' => $booking], 201);
+    }
+
+    public function show($id): JsonResponse
+    {
+        $booking = Booking::with(['employee', 'driver', 'car'])->findOrFail($id);
+        return response()->json(['data' => $booking]);
+    }
+
+    public function update(Request $request, $id): JsonResponse
+    {
+        $booking = Booking::findOrFail($id);
         
-        return response()->json(['success' => true, 'data' => $booking], 201);
-    }
-
-    public function show(Booking $booking)
-    {
-        $booking->load(['employee', 'driver', 'car']);
-        return response()->json(['success' => true, 'data' => $booking]);
-    }
-
-    public function update(Request $request, Booking $booking)
-    {
         $validated = $request->validate([
-            'employee_id' => 'exists:employees,id',
-            'driver_id' => 'nullable|exists:drivers,id',
-            'car_id' => 'nullable|exists:cars,id',
-            'destination' => 'string',
-            'pickup_date' => 'date',
-            'pickup_time' => 'string',
-            'return_time' => 'nullable|string',
-            'passenger_count' => 'nullable|integer|min:1',
-            'purpose' => 'string',
-            'status' => 'in:pending,approved,rejected,completed',
+            'employee_id' => 'sometimes|exists:employees,id',
+            'pickup_date' => 'sometimes|date',
+            'pickup_time' => 'sometimes',
+            'destination' => 'sometimes|string',
+            'purpose' => 'sometimes|string',
             'notes' => 'nullable|string',
+            'passenger_count' => 'sometimes|integer|min:1',
+            'passenger_names' => 'nullable|string',
+            'return_time' => 'nullable',
+            'status' => 'sometimes|in:pending,approved,completed,rejected'
         ]);
-
-        // Handle completion - release driver and car
-        if (isset($validated['status']) && $validated['status'] === 'completed') {
-            if ($booking->driver_id) {
-                \App\Models\Driver::where('id', $booking->driver_id)
-                    ->update(['status' => 'active']);
-            }
-            if ($booking->car_id) {
-                \App\Models\Car::where('id', $booking->car_id)
-                    ->update(['status' => 'available']);
-            }
-            $validated['completed_at'] = now();
-        }
 
         $booking->update($validated);
+        return response()->json(['data' => $booking]);
+    }
+
+    public function destroy($id): JsonResponse
+    {
+        $booking = Booking::findOrFail($id);
+        
+        // Free up driver and car when booking is deleted
+        if ($booking->driver_id) {
+            Driver::where('id', $booking->driver_id)->update(['status' => 'active']);
+        }
+        if ($booking->car_id) {
+            Car::where('id', $booking->car_id)->update(['status' => 'available']);
+        }
+        
+        $booking->delete();
+        return response()->json(['message' => 'Booking deleted successfully']);
+    }
+
+    public function updateStatus(Request $request, $id): JsonResponse
+    {
+        $booking = Booking::findOrFail($id);
+        
+        $validated = $request->validate([
+            'status' => 'required|in:pending,approved,completed,rejected'
+        ]);
+
+        // If completing booking, free up driver and car
+        if ($validated['status'] === 'completed') {
+            if ($booking->driver_id) {
+                Driver::where('id', $booking->driver_id)->update(['status' => 'active']);
+            }
+            if ($booking->car_id) {
+                Car::where('id', $booking->car_id)->update(['status' => 'available']);
+            }
+        }
+
+        $booking->update(['status' => $validated['status']]);
+        
+        // Load relationships for response
         $booking->load(['employee', 'driver', 'car']);
         
-        return response()->json(['success' => true, 'data' => $booking]);
+        return response()->json([
+            'message' => 'Status booking berhasil diperbarui',
+            'data' => $booking
+        ]);
     }
 
-    public function destroy(Booking $booking)
+    public function approve(Request $request, $id): JsonResponse
     {
-        $booking->delete();
-        return response()->json(['success' => true, 'message' => 'Booking deleted']);
+        \Log::info('Approve function called', ['booking_id' => $id, 'request_data' => $request->all()]);
+        $booking = Booking::findOrFail($id);
+        
+        $validated = $request->validate([
+            'driver_id' => 'required|exists:drivers,id',
+            'car_id' => 'required|exists:cars,id'
+        ]);
+
+        // Update booking status and assign driver/car
+        $booking->update([
+            'status' => 'approved',
+            'driver_id' => $validated['driver_id'],
+            'car_id' => $validated['car_id']
+        ]);
+
+        // Update driver status to booked
+        Driver::where('id', $validated['driver_id'])->update(['status' => 'booked']);
+
+        // Update car status to booked
+        Car::where('id', $validated['car_id'])->update(['status' => 'booked']);
+
+        return response()->json(['data' => $booking]);
     }
 
-    public function approve(Request $request, Booking $booking)
+    public function reject(Request $request, $id): JsonResponse
     {
-        try {
-            $validated = $request->validate([
-                'driver_id' => 'required|exists:drivers,id',
-                'car_id' => 'required|exists:cars,id',
-                'notes' => 'nullable|string',
-            ]);
+        $booking = Booking::findOrFail($id);
+        
+        $validated = $request->validate([
+            'rejection_reason' => 'required|string|min:10',
+            'rejected_by' => 'required|string'
+        ]);
 
-            // Update driver status to on_duty
-            \App\Models\Driver::where('id', $validated['driver_id'])
-                ->update(['status' => 'on_duty']);
-                
-            // Update car status to booked
-            \App\Models\Car::where('id', $validated['car_id'])
-                ->update(['status' => 'booked']);
-
-            $booking->update([
-                'status' => 'approved',
-                'driver_id' => $validated['driver_id'],
-                'car_id' => $validated['car_id'],
-                'notes' => $validated['notes'] ?? $booking->notes,
-            ]);
-
-            $booking->load(['employee', 'driver', 'car']);
-            return response()->json(['success' => true, 'data' => $booking]);
-        } catch (\Exception $e) {
-            \Log::error('Booking approval error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        // Free up driver and car when booking is rejected
+        if ($booking->driver_id) {
+            Driver::where('id', $booking->driver_id)->update(['status' => 'active']);
         }
-    }
-
-    public function reject(Request $request, Booking $booking)
-    {
-        try {
-            $validated = $request->validate([
-                'notes' => 'nullable|string',
-            ]);
-
-            $booking->update([
-                'status' => 'rejected',
-                'notes' => $validated['notes'] ?? $booking->notes,
-            ]);
-
-            $booking->load(['employee', 'driver', 'car']);
-            return response()->json(['success' => true, 'data' => $booking]);
-        } catch (\Exception $e) {
-            \Log::error('Booking rejection error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        if ($booking->car_id) {
+            Car::where('id', $booking->car_id)->update(['status' => 'available']);
         }
+
+        $booking->update([
+            'status' => 'rejected',
+            'rejection_reason' => $validated['rejection_reason'],
+            'rejected_by' => $validated['rejected_by']
+        ]);
+
+        return response()->json(['data' => $booking]);
     }
 }

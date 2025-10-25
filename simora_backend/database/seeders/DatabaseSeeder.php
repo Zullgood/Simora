@@ -10,22 +10,22 @@ class DatabaseSeeder extends Seeder
 {
     public function run()
     {
-        // Create Super Admin
+        // Create Admin User
         User::create([
-            'name' => 'Super Admin',
+            'name' => 'Admin Simora',
             'email' => 'admin@simora.com',
             'password' => Hash::make('password'),
-            'role' => 'super_admin',
+            'role' => 'admin',
             'department' => 'IT',
+            'status' => 'active'
         ]);
 
-        // Create Regular Admin
-        User::create([
-            'name' => 'HRD Admin',
-            'email' => 'hrd@simora.com',
-            'password' => Hash::make('password'),
-            'role' => 'admin',
-            'department' => 'HRD/GA',
-        ]);
+        // Uncomment seeders if needed
+        // $this->call([
+        //     AdminEmployeeSeeder::class,
+        //     CarSeeder::class,
+        //     DummyDataSeeder::class,
+        //     NotificationSeeder::class,
+        // ]);
     }
 }
